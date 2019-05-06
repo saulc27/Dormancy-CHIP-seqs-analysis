@@ -28,7 +28,11 @@ rose.peaks.table <- rose.peaks.table+1
 rose.peaks.table$FC <- rose.peaks.table$`THEP3-H3K27ac`/rose.peaks.table$`DHEP3-H3K27ac`
 rose.peaks.table$FClog2 <- log2(rose.peaks.table$FC)
 rose.peak.table.sorted <- rose.peaks.table %>% arrange(desc(FClog2))
-barplot(rose.peak.table.sorted$FClog2[c(1:600, 25500:26106)], ylab = "Log2FC")
+
+col <- ifelse(rose.peak.table.sorted$FClog2 > 2.808, "#BC5A42", "#009296")
+barplot(rose.peak.table.sorted$FClog2[c(1:600, 25500:26106)], ylab = "Log2FC H3K27ac", ylim = c(-15,15), 
+        main = "Differential SE enrichment between DHEP and THEP3", col = col,  border=col, cex.axis=1.2, cex.lab=1.4, legend.text=c("THEP3 enriched","DHEP3 enriched"),
+        args.legend=list(title="Cell lines", fill=c("#BC5A42","#009296"), border=NA))
 
 #ggplot
 x <- 1:nrow(rose.peak.table.sorted)
