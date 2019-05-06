@@ -22,7 +22,17 @@ colnames(read.k27ac.rose.peaks) <- c("Peak-ID","THEP3-H3K27ac","DHEP3-H3K27ac")
 rose.peaks.table <- read.k27ac.rose.peaks %>%
                     `row.names<-`(., NULL) %>% 
                      column_to_rownames(var = "Peak-ID")
-                
+
+#add column with FC and log2FC to plot waterfall plot
+rose.peaks.table <- rose.peaks.table+1
+rose.peaks.table$FC <- rose.peaks.table$`THEP3-H3K27ac`/rose.peaks.table$`DHEP3-H3K27ac`
+rose.peaks.table$FClog2 <- log2(rose.peaks.table$FC)
+rose.peak.table.sorted <- rose.peaks.table %>% arrange(desc(FClog2))
+barplot(rose.peak.table.sorted$FClog2[c(1:600, 25500:26106)], ylab = "Log2FC")
+
+#ggplot
+x <- 1:nrow(rose.peak.table.sorted)
+ggplot(rose.peak.table.sorted, aes(x=x, y = FClog2))+geom_bar(stat = "identity")
 
 #rose.peaks.table.ratio <- k27ac.rose.peaks %>%
  # `row.names<-`(., NULL) %>% 
