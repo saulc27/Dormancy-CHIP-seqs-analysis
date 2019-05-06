@@ -15,6 +15,7 @@ library(gghighlight)
 library(ggstatsplot)
 library(superheat)
 
+
 setwd(dir = "../../Documents/School/BernsteinLab/Genomics/Chipseq/Dhep Thep/beds/")
 read.k27ac.rose.peaks <- read.table(file = "DHEP-THEP-H3K27ac-rose-peaks-table.csv", sep = ",", header = TRUE)
 colnames(read.k27ac.rose.peaks) <- c("Peak-ID","THEP3-H3K27ac","DHEP3-H3K27ac")
