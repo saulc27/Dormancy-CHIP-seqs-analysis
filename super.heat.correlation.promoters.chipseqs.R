@@ -22,6 +22,10 @@ library(shiny)
 setwd(dir = "../../Documents/School/BernsteinLab/Genomics/Chipseq/Dhep Thep/beds/Analysis")
 read.promoter.counts <- read.table(file = "Promoters-with-DHEP3-THEP3-H3K27ac-and-BM-NR2F1-counts.csv", sep = ",", header = TRUE)
 read.rnaseq.counts <- read.table(file = "DvT.RNAseq.results.csv", sep = ",", header = TRUE)
+read.all.enhacers.table <- read.table(file = "../DHEP-THEP-H3K27ac-merged-q1e-3_filtered_AllEnhancers.table.txt", header = TRUE)
+read.enhancer.promoter.table <- read.table(file ="../Dhep-Thep-enhancer-to-promoter-5-closest.bed", header = F)
+all.enhancers.table.final <- read.all.enhacers.table[,c(1,2,3,4,10,12,13,14)]
+
 CHIPseq.RNASEQ.counts.final <- merge(read.promoter.counts, read.rnaseq.counts, by.x="id", by.y="rn")
 rownames(CHIPseq.RNASEQ.counts.final) = make.names(CHIPseq.RNASEQ.counts.final$id, unique=TRUE)
 
