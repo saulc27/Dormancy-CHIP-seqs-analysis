@@ -20,13 +20,43 @@ library(shiny)
 
 
 setwd(dir = "../../Documents/School/BernsteinLab/Genomics/Chipseq/Dhep Thep/beds/Analysis")
-read.promoter.counts <- read.table(file = "Promoters-with-DHEP3-THEP3-H3K27ac-and-BM-NR2F1-counts.csv", sep = ",", header = TRUE)
-read.rnaseq.counts <- read.table(file = "DvT.RNAseq.results.csv", sep = ",", header = TRUE)
+read.promoter.counts <- read.table(file = "../Promoters-with-DHEP3-THEP3-H3K27ac-and-BM-NR2F1-counts.csv", sep = ",", header = TRUE)
+read.rnaseq.results <- read.table(file = "../DvT.RNAseq.results.csv", sep = ",", header = TRUE)
 read.all.enhacers.table <- read.table(file = "../DHEP-THEP-H3K27ac-merged-q1e-3_filtered_AllEnhancers.table.txt", header = TRUE)
-read.enhancer.promoter.table <- read.table(file ="../Dhep-Thep-enhancer-to-promoter-5-closest.bed", header = F)
+read.enhancer.promoter.table <- read.table(file ="DHEP-THEP-H3K27ac-merged-q1e-3_filtered_Enhancers_withSuper-1mb-extended-with-promoters.bed", header = F)
 all.enhancers.table.final <- read.all.enhacers.table[,c(1,2,3,4,10,12,13,14)]
+SE.only.table <- all.enhancers.table.final[all.enhancers.table.final$isSuper==1,]
+SE.only.table$FC  <- SE.only.table$THEP_H3K27ac.XL.final.bam/SE.only.table$DHEP_H3K27ac.XL.final.bam
+SE.only.table$log2FC <- log2(SE.only.table$FC)
+SE.only.table.DF <- SE.only.table[which(SE.only.table$log2FC>1.5 | SE.only.table$log2FC< -1.5),]
+
+SE.only.table.final.with.promoters <- merge(read.enhancer.promoter.table, SE.only.table, by.x = "V4", by.y="REGION_ID")
+SE.only.table.final.with.promoters.final <- SE.only.table.final.with.promoters[,c(-2,-3,-4,-5,-6,-7,-8)]
+SE.Promoters.Diff.nodup <- SE.only.table.final.with.promoters.final[!duplicated(SE.only.table.final.with.promoters.final),]
+SE.table.with.promoters.only.DF <- SE.Promoters.Diff.nodup[which(SE.Promoters.Diff.nodup$log2FC>1.5 | SE.Promoters.Diff.nodup$log2FC< -1.5),]
+
+
+SE.table.promoters.RNA.seq<- merge(SE.table.with.promoters.only.DF, read.rnaseq.results, by.x="V9", by.y="rn")
+SE.table.promoters.RNA.seq.filtered <-SE.table.promoters.RNA.seq[SE.table.promoters.RNA.seq$baseMean>500,]
+
+SE.table.promoters.RNA.seq.THEP <- SE.table.promoters.RNA.seq.filtered[SE.table.promoters.RNA.seq.filtered$log2FC>1,]
+SE.table.promoters.RNA.seq.DHEP <-SE.table.promoters.RNA.seq.filtered[SE.table.promoters.RNA.seq.filtered$log2FC< -1,]
+
+
+final.table.promoters.RNA.seq.THEP.top <- SE.table.promoters.RNA.seq.THEP  %>%
+  group_by(V4) %>%
+  top_n(2, log2FoldChange)
+
+
+final.table.promoters.RNA.seq.DHEP.top <- SE.table.promoters.RNA.seq.DHEP  %>%
+  group_by(V4) %>%
+  top_n(2, log2FoldChange)
+
 
 CHIPseq.RNASEQ.counts.final <- merge(read.promoter.counts, read.rnaseq.counts, by.x="id", by.y="rn")
+
+
+
 rownames(CHIPseq.RNASEQ.counts.final) = make.names(CHIPseq.RNASEQ.counts.final$id, unique=TRUE)
 
 #Expression CHIP signal correlation
