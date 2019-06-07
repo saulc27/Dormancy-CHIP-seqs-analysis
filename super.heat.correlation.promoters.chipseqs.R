@@ -20,15 +20,29 @@ library(shiny)
 
 
 setwd(dir = "../../Documents/School/BernsteinLab/Genomics/Chipseq/Dhep Thep/beds/Analysis")
+#active promoters
 read.promoter.counts <- read.table(file = "../Promoters-with-DHEP3-THEP3-H3K27ac-and-BM-NR2F1-counts.csv", sep = ",", header = TRUE)
+
+#RNAseq table
 read.rnaseq.results <- read.table(file = "../DvT.RNAseq.results.csv", sep = ",", header = TRUE)
-read.all.enhacers.table <- read.table(file = "../DHEP-THEP-H3K27ac-merged-q1e-3_filtered_AllEnhancers.table.txt", header = TRUE)
-read.enhancer.promoter.table <- read.table(file ="DHEP-THEP-H3K27ac-merged-q1e-3_filtered_Enhancers_withSuper-1mb-extended-with-promoters.bed", header = F)
-all.enhancers.table.final <- read.all.enhacers.table[,c(1,2,3,4,10,12,13,14)]
-SE.only.table <- all.enhancers.table.final[all.enhancers.table.final$isSuper==1,]
-SE.only.table$FC  <- SE.only.table$THEP_H3K27ac.XL.final.bam/SE.only.table$DHEP_H3K27ac.XL.final.bam
-SE.only.table$log2FC <- log2(SE.only.table$FC)
+
+#ROSe enhancer table
+all.enhancers.table <- read.table(file = "../DHEP-THEP-H3K27ac-merged-q1e-3_filtered_AllEnhancers.table.txt", header = TRUE)[,c(1,2,3,4,10,12,13,14)]
+
+#Enhancer promoter tables (bedtools)
+read.1mb.enhancer.promoter.table <- read.table(file ="DHEP-THEP-H3K27ac-merged-q1e-3_filtered_Enhancers_withSuper-1mb-extended-with-promoters.bed", header = F)
+read.2mb.enhancer.promoter.table <- read.table(file ="DHEP-THEP-H3K27ac-merged-q1e-3_filtered_Enhancers_withSuper-2mb-extended-with-promoters.bed", header = F)
+
+#SE only with Log2Fc cutoff
+SE.only.table <- all.enhancers.table[all.enhancers.table$isSuper==1,]
+SE.only.table$log2FC  <- log2(SE.only.table$THEP_H3K27ac.XL.final.bam/SE.only.table$DHEP_H3K27ac.XL.final.bam)
 SE.only.table.DF <- SE.only.table[which(SE.only.table$log2FC>1.5 | SE.only.table$log2FC< -1.5),]
+
+#TE only with Log2FC
+TE.only.table <- all.enhancers.table[all.enhancers.table$isSuper==0,]
+TE.only.table$log2FC  <- log2(TE.only.table$THEP_H3K27ac.XL.final.bam/TE.only.table$DHEP_H3K27ac.XL.final.bam)
+TE.only.table.DF <- TE.only.table[which(TE.only.table$log2FC>1.5 | TE.only.table$log2FC< -1.5),]
+
 
 SE.only.table.final.with.promoters <- merge(read.enhancer.promoter.table, SE.only.table, by.x = "V4", by.y="REGION_ID")
 SE.only.table.final.with.promoters.final <- SE.only.table.final.with.promoters[,c(-2,-3,-4,-5,-6,-7,-8)]
@@ -50,7 +64,7 @@ final.table.promoters.RNA.seq.THEP.top <- SE.table.promoters.RNA.seq.THEP  %>%
 
 final.table.promoters.RNA.seq.DHEP.top <- SE.table.promoters.RNA.seq.DHEP  %>%
   group_by(V4) %>%
-  top_n(2, log2FoldChange)
+  top_n(-2, log2FoldChange)
 
 
 CHIPseq.RNASEQ.counts.final <- merge(read.promoter.counts, read.rnaseq.counts, by.x="id", by.y="rn")
