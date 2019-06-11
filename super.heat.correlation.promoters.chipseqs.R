@@ -38,33 +38,88 @@ SE.only.table <- all.enhancers.table[all.enhancers.table$isSuper==1,]
 SE.only.table$log2FC  <- log2(SE.only.table$THEP_H3K27ac.XL.final.bam/SE.only.table$DHEP_H3K27ac.XL.final.bam)
 SE.only.table.DF <- SE.only.table[which(SE.only.table$log2FC>1.5 | SE.only.table$log2FC< -1.5),]
 
-#TE only with Log2FC
-TE.only.table <- all.enhancers.table[all.enhancers.table$isSuper==0,]
-TE.only.table$log2FC  <- log2(TE.only.table$THEP_H3K27ac.XL.final.bam/TE.only.table$DHEP_H3K27ac.XL.final.bam)
-TE.only.table.DF <- TE.only.table[which(TE.only.table$log2FC>1.5 | TE.only.table$log2FC< -1.5),]
+#Merging DF SE enhancer table with promoters removing dups
+SE.only.with.promoters <- merge(read.1mb.enhancer.promoter.table, SE.only.table.DF, by.x = "V4", by.y="REGION_ID")
+SE.only.with.promoters <- SE.only.with.promoters[!duplicated(SE.only.with.promoters),]
+Trimmed.SE.only.with.promoters <- SE.only.with.promoters[,c(-2,-3,-4,-5,-6,-7,-8)]
 
+#merging with RNAseq table and filtering lower expressed genes
+RNA.seq.SE.table.promoters<- merge(Trimmed.SE.only.with.promoters , read.rnaseq.results, by.x="V9", by.y="rn")
+RNA.seq.SE.table.promoters.filtered<- RNA.seq.SE.table.promoters[RNA.seq.SE.table.promoters$baseMean>500,]
 
-SE.only.table.final.with.promoters <- merge(read.enhancer.promoter.table, SE.only.table, by.x = "V4", by.y="REGION_ID")
-SE.only.table.final.with.promoters.final <- SE.only.table.final.with.promoters[,c(-2,-3,-4,-5,-6,-7,-8)]
-SE.Promoters.Diff.nodup <- SE.only.table.final.with.promoters.final[!duplicated(SE.only.table.final.with.promoters.final),]
-SE.table.with.promoters.only.DF <- SE.Promoters.Diff.nodup[which(SE.Promoters.Diff.nodup$log2FC>1.5 | SE.Promoters.Diff.nodup$log2FC< -1.5),]
+SE.table.promoters.RNA.seq.THEP <- RNA.seq.SE.table.promoters.filtered[RNA.seq.SE.table.promoters.filtered$log2FC>1,] 
+SE.table.promoters.RNA.seq.THEP <- SE.table.promoters.RNA.seq.THEP[!duplicated(SE.table.promoters.RNA.seq.THEP),]
 
+SE.table.promoters.RNA.seq.DHEP <-RNA.seq.SE.table.promoters.filtered[RNA.seq.SE.table.promoters.filtered$log2FC< -1,] 
+SE.table.promoters.RNA.seq.DHEP <- SE.table.promoters.RNA.seq.DHEP[!duplicated(SE.table.promoters.RNA.seq.DHEP),]
 
-SE.table.promoters.RNA.seq<- merge(SE.table.with.promoters.only.DF, read.rnaseq.results, by.x="V9", by.y="rn")
-SE.table.promoters.RNA.seq.filtered <-SE.table.promoters.RNA.seq[SE.table.promoters.RNA.seq$baseMean>500,]
-
-SE.table.promoters.RNA.seq.THEP <- SE.table.promoters.RNA.seq.filtered[SE.table.promoters.RNA.seq.filtered$log2FC>1,]
-SE.table.promoters.RNA.seq.DHEP <-SE.table.promoters.RNA.seq.filtered[SE.table.promoters.RNA.seq.filtered$log2FC< -1,]
+Final.SE.table.promoters.RNA.seq.THEP <- SE.table.promoters.RNA.seq.THEP[SE.table.promoters.RNA.seq.THEP$log2FoldChange>0.8,]
+write.csv(Final.SE.table.promoters.RNA.seq.THEP, file = "SE.genes.table.THEP3.csv")
 
 
 final.table.promoters.RNA.seq.THEP.top <- SE.table.promoters.RNA.seq.THEP  %>%
   group_by(V4) %>%
-  top_n(2, log2FoldChange)
+  arrange(desc(log2FoldChange)) %>% 
+  slice(1:20)
+
+
+Final.SE.table.promoters.RNA.seq.DHEP <- SE.table.promoters.RNA.seq.DHEP[SE.table.promoters.RNA.seq.DHEP$log2FoldChange< -0.8,]
+write.csv(Final.SE.table.promoters.RNA.seq.DHEP, file = "SE.genes.table.DHEP3.csv")
 
 
 final.table.promoters.RNA.seq.DHEP.top <- SE.table.promoters.RNA.seq.DHEP  %>%
   group_by(V4) %>%
-  top_n(-2, log2FoldChange)
+  arrange(log2FoldChange) %>% 
+  slice(1:5)
+
+
+
+#TE only with Log2FC
+TE.only.table <- all.enhancers.table[all.enhancers.table$isSuper==0,]
+TE.only.table$log2FC  <- log2((TE.only.table$THEP_H3K27ac.XL.final.bam+1)/(TE.only.table$DHEP_H3K27ac.XL.final.bam+1))
+TE.only.table$CENTER <- as.integer((TE.only.table$START+TE.only.table$STOP)/2) 
+TE.only.table.DF <- TE.only.table[which(TE.only.table$log2FC>1.5 | TE.only.table$log2FC< -1.5),]
+
+
+#Merging DF TE enhancer table with promoters removing dups
+TE.only.with.promoters <- merge(read.1mb.enhancer.promoter.table, TE.only.table.DF, by.x = "V4", by.y="REGION_ID")
+TE.only.with.promoters <- TE.only.with.promoters[!duplicated(TE.only.with.promoters),]
+Trimmed.TE.only.with.promoters <- TE.only.with.promoters[,c(-2,-3,-4,-5)]
+Trimmed.TE.only.with.promoters <- Trimmed.TE.only.with.promoters[Trimmed.TE.only.with.promoters$V7>0,]
+Trimmed.TE.only.with.promoters$TSS <- as.integer((Trimmed.TE.only.with.promoters$V7+Trimmed.TE.only.with.promoters$V8)/2)
+Trimmed.TE.only.with.promoters$distance <- abs(Trimmed.TE.only.with.promoters$CENTER - Trimmed.TE.only.with.promoters$TSS)
+
+#adding ranks by distance
+Trimmed.TE.only.with.promoters <-   Trimmed.TE.only.with.promoters %>%
+                                    group_by(V4) %>%
+                                    mutate(my_ranks = order(order(distance, decreasing=F)))
+
+
+#merging with RNAseq table and filtering lower expressed genes
+RNA.seq.TE.table.promoters<- merge(Trimmed.TE.only.with.promoters , read.rnaseq.results, by.x="V9", by.y="rn")
+RNA.seq.TE.table.promoters.filtered<- RNA.seq.TE.table.promoters[RNA.seq.TE.table.promoters$baseMean>250,]
+TE.table.promoters.RNA.seq.THEP <- RNA.seq.TE.table.promoters.filtered[RNA.seq.TE.table.promoters.filtered$log2FC>1,] 
+TE.table.promoters.RNA.seq.THEP <- TE.table.promoters.RNA.seq.THEP[!duplicated(TE.table.promoters.RNA.seq.THEP),]
+TE.table.promoters.RNA.seq.DHEP <-RNA.seq.TE.table.promoters.filtered[RNA.seq.TE.table.promoters.filtered$log2FC< -1,] 
+TE.table.promoters.RNA.seq.DHEP <- TE.table.promoters.RNA.seq.DHEP[!duplicated(TE.table.promoters.RNA.seq.DHEP),]
+
+Final.TE.table.promoters.RNA.seq.DHEP <- TE.table.promoters.RNA.seq.THEP[TE.table.promoters.RNA.seq.THEP$log2FoldChange> 0.8,]
+write.csv(Final.TE.table.promoters.RNA.seq.DHEP, file = "TE.genes.table.THEP3.csv")
+
+
+
+TE.final.table.promoters.RNA.seq.THEP.top <- TE.table.promoters.RNA.seq.THEP  %>%
+  group_by(V4) %>%
+    arrange(log2FoldChange) %>% 
+  slice(1)
+
+TE.final.table.promoters.RNA.seq.DHEP.top <- TE.table.promoters.RNA.seq.DHEP  %>%
+  group_by(V4) %>%
+  arrange(log2FoldChange) %>% 
+  slice(1)
+
+
+
 
 
 CHIPseq.RNASEQ.counts.final <- merge(read.promoter.counts, read.rnaseq.counts, by.x="id", by.y="rn")
