@@ -36,25 +36,42 @@ read.2mb.enhancer.promoter.table <- read.table(file ="DHEP-THEP-H3K27ac-merged-q
 #SE only with Log2Fc cutoff
 SE.only.table <- all.enhancers.table[all.enhancers.table$isSuper==1,]
 SE.only.table$log2FC  <- log2(SE.only.table$THEP_H3K27ac.XL.final.bam/SE.only.table$DHEP_H3K27ac.XL.final.bam)
+SE.only.table$CENTER <- as.integer((SE.only.table$START+SE.only.table$STOP)/2)
 SE.only.table.DF <- SE.only.table[which(SE.only.table$log2FC>1.5 | SE.only.table$log2FC< -1.5),]
 
 #Merging DF SE enhancer table with promoters removing dups
 SE.only.with.promoters <- merge(read.1mb.enhancer.promoter.table, SE.only.table.DF, by.x = "V4", by.y="REGION_ID")
 SE.only.with.promoters <- SE.only.with.promoters[!duplicated(SE.only.with.promoters),]
-Trimmed.SE.only.with.promoters <- SE.only.with.promoters[,c(-2,-3,-4,-5,-6,-7,-8)]
+Trimmed.SE.only.with.promoters <- SE.only.with.promoters[,c(-2,-3,-4,-5,-13,-14,-15,-16)]
+
+Trimmed.SE.only.with.promoters$TSS <- as.integer((Trimmed.SE.only.with.promoters$V7+Trimmed.SE.only.with.promoters$V8)/2)
+Trimmed.SE.only.with.promoters$distance.kb <- abs((Trimmed.SE.only.with.promoters$CENTER - Trimmed.SE.only.with.promoters$TSS)/1000)
+
+
+Trimmed.SE.only.with.promoters <-   Trimmed.SE.only.with.promoters %>%
+  group_by(V4) %>%
+  mutate(my_ranks = order(order(distance.kb, decreasing=F)))
+
 
 #merging with RNAseq table and filtering lower expressed genes
 RNA.seq.SE.table.promoters<- merge(Trimmed.SE.only.with.promoters , read.rnaseq.results, by.x="V9", by.y="rn")
 RNA.seq.SE.table.promoters.filtered<- RNA.seq.SE.table.promoters[RNA.seq.SE.table.promoters$baseMean>500,]
 
-SE.table.promoters.RNA.seq.THEP <- RNA.seq.SE.table.promoters.filtered[RNA.seq.SE.table.promoters.filtered$log2FC>1,] 
-SE.table.promoters.RNA.seq.THEP <- SE.table.promoters.RNA.seq.THEP[!duplicated(SE.table.promoters.RNA.seq.THEP),]
+THEP.SE.table.promoters.RNA.seq <- RNA.seq.SE.table.promoters.filtered[RNA.seq.SE.table.promoters.filtered$log2FC>1,] 
+THEP.SE.table.promoters.RNA.seq <- SE.table.promoters.RNA.seq.THEP[!duplicated(SE.table.promoters.RNA.seq.THEP),]
 
-SE.table.promoters.RNA.seq.DHEP <-RNA.seq.SE.table.promoters.filtered[RNA.seq.SE.table.promoters.filtered$log2FC< -1,] 
-SE.table.promoters.RNA.seq.DHEP <- SE.table.promoters.RNA.seq.DHEP[!duplicated(SE.table.promoters.RNA.seq.DHEP),]
+#Convert Ranks to factor type
+THEP.SE.table.promoters.RNA.seq$my_ranks <- as.factor(THEP.SE.table.promoters.RNA.seq$my_ranks )
 
-Final.SE.table.promoters.RNA.seq.THEP <- SE.table.promoters.RNA.seq.THEP[SE.table.promoters.RNA.seq.THEP$log2FoldChange>0.8,]
-write.csv(Final.SE.table.promoters.RNA.seq.THEP, file = "SE.genes.table.THEP3.csv")
+#back to numeric for filtering
+THEP.SE.table.promoters.RNA.seq$my_ranks <- as.numeric(THEP.SE.table.promoters.RNA.seq$my_ranks )
+
+#filtering by distance and gene log2FC
+
+THEP.SE.table.promoters.RNA.seq <- THEP.SE.table.promoters.RNA.seq %>%  
+                                  filter(log2FoldChange> 0.5)
+                                  
+write.csv(THEP.SE.table.promoters.RNA.seq, file = "SE.genes.table.THEP3.csv")
 
 
 final.table.promoters.RNA.seq.THEP.top <- SE.table.promoters.RNA.seq.THEP  %>%
@@ -102,6 +119,13 @@ TE.table.promoters.RNA.seq.THEP <- RNA.seq.TE.table.promoters.filtered[RNA.seq.T
 TE.table.promoters.RNA.seq.THEP <- TE.table.promoters.RNA.seq.THEP[!duplicated(TE.table.promoters.RNA.seq.THEP),]
 TE.table.promoters.RNA.seq.DHEP <-RNA.seq.TE.table.promoters.filtered[RNA.seq.TE.table.promoters.filtered$log2FC< -1,] 
 TE.table.promoters.RNA.seq.DHEP <- TE.table.promoters.RNA.seq.DHEP[!duplicated(TE.table.promoters.RNA.seq.DHEP),]
+
+barplot(TE.table.promoters.RNA.seq.DHEP$log2FoldChange, TE.table.promoters.RNA.seq.DHEP$my_ranks<2)
+
+TE.table.promoters.RNA.seq.DHEP <- TE.table.promoters.RNA.seq.DHEP[TE.table.promoters.RNA.seq.DHEP$my_ranks<5,]
+
+barplot(TE.table.promoters.RNA.seq.DHEP$log2FoldChange, as.factor(TE.table.promoters.RNA.seq.DHEP$my_ranks))
+
 
 Final.TE.table.promoters.RNA.seq.DHEP <- TE.table.promoters.RNA.seq.THEP[TE.table.promoters.RNA.seq.THEP$log2FoldChange> 0.8,]
 write.csv(Final.TE.table.promoters.RNA.seq.DHEP, file = "TE.genes.table.THEP3.csv")
