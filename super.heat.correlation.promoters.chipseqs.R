@@ -31,7 +31,7 @@ all.enhancers.table <- read.table(file = "../DHEP-THEP-H3K27ac-merged-q1e-3_filt
 
 #Enhancer promoter tables (bedtools)
 read.1mb.enhancer.promoter.table <- read.table(file ="DHEP-THEP-H3K27ac-merged-q1e-3_filtered_Enhancers_withSuper-1mb-extended-with-promoters.bed", header = F)
-read.2mb.enhancer.promoter.table <- read.table(file ="DHEP-THEP-H3K27ac-merged-q1e-3_filtered_Enhancers_withSuper-2mb-extended-with-promoters.bed", header = F)
+#read.2mb.enhancer.promoter.table <- read.table(file ="DHEP-THEP-H3K27ac-merged-q1e-3_filtered_Enhancers_withSuper-2mb-extended-with-promoters.bed", header = F)
 
 #SE only with Log2Fc cutoff
 SE.only.table <- all.enhancers.table[all.enhancers.table$isSuper==1,]
@@ -55,39 +55,71 @@ Trimmed.SE.only.with.promoters <-   Trimmed.SE.only.with.promoters %>%
 
 #merging with RNAseq table and filtering lower expressed genes
 RNA.seq.SE.table.promoters<- merge(Trimmed.SE.only.with.promoters , read.rnaseq.results, by.x="V9", by.y="rn")
-RNA.seq.SE.table.promoters.filtered<- RNA.seq.SE.table.promoters[RNA.seq.SE.table.promoters$baseMean>500,]
+RNA.seq.SE.table.promoters.filtered<- RNA.seq.SE.table.promoters[RNA.seq.SE.table.promoters$baseMean>100,]
 
+#THEP
 THEP.SE.table.promoters.RNA.seq <- RNA.seq.SE.table.promoters.filtered[RNA.seq.SE.table.promoters.filtered$log2FC>1,] 
-THEP.SE.table.promoters.RNA.seq <- SE.table.promoters.RNA.seq.THEP[!duplicated(SE.table.promoters.RNA.seq.THEP),]
+THEP.SE.table.promoters.RNA.seq <- THEP.SE.table.promoters.RNA.seq[!duplicated(THEP.SE.table.promoters.RNA.seq),]
 
 #Convert Ranks to factor type
-THEP.SE.table.promoters.RNA.seq$my_ranks <- as.factor(THEP.SE.table.promoters.RNA.seq$my_ranks )
+#THEP.SE.table.promoters.RNA.seq$my_ranks <- as.factor(THEP.SE.table.promoters.RNA.seq$my_ranks )
 
 #back to numeric for filtering
-THEP.SE.table.promoters.RNA.seq$my_ranks <- as.numeric(THEP.SE.table.promoters.RNA.seq$my_ranks )
+#THEP.SE.table.promoters.RNA.seq$my_ranks <- as.numeric(THEP.SE.table.promoters.RNA.seq$my_ranks )
 
 #filtering by distance and gene log2FC
 
 THEP.SE.table.promoters.RNA.seq <- THEP.SE.table.promoters.RNA.seq %>%  
-                                  filter(log2FoldChange> 0.5)
+                                  filter(!(log2FoldChange< 0.9 & distance.kb>500))
+
+THEP.SE.table.promoters.RNA.seq <- THEP.SE.table.promoters.RNA.seq %>%  
+                                      filter(log2FoldChange> 0.5)
+
+Final.THEP.SE.table.promoters.RNA.seq <- select(THEP.SE.table.promoters.RNA.seq, V9, V6, V7, V8, TSS, V4, CHROM, START, STOP, CENTER, distance.kb, my_ranks,
+                                                log2FC, log2FoldChange, baseMean,padj)
+
+colnames(Final.THEP.SE.table.promoters.RNA.seq) <- c("GENE.SYMBOL","PROMOTER.CHROM","PROMOTER.START","PROMOTER.END","PROMOTER.TSS","SE.PEAK","SE.CHROM",
+                                                     "SE.START", "SE.END", "SE.CENTER","DISTANCE.PROM.ENH.KB","RANKED.DISTANCE","SE.LOG2FC",
+                                                     "GENE.LOG2FC","GENE.BASEMEAN","GENE.LOG2FC.PADJ")
                                   
-write.csv(THEP.SE.table.promoters.RNA.seq, file = "SE.genes.table.THEP3.csv")
+write.csv(Final.THEP.SE.table.promoters.RNA.seq, file = "SE.genes.table.THEP3.csv")
 
 
-final.table.promoters.RNA.seq.THEP.top <- SE.table.promoters.RNA.seq.THEP  %>%
-  group_by(V4) %>%
-  arrange(desc(log2FoldChange)) %>% 
-  slice(1:20)
+#final.table.promoters.RNA.seq.THEP.top <- SE.table.promoters.RNA.seq.THEP  %>%
+#group_by(V4) %>%
+#arrange(desc(log2FoldChange)) %>% 
+#slice(1:20)
 
 
-Final.SE.table.promoters.RNA.seq.DHEP <- SE.table.promoters.RNA.seq.DHEP[SE.table.promoters.RNA.seq.DHEP$log2FoldChange< -0.8,]
-write.csv(Final.SE.table.promoters.RNA.seq.DHEP, file = "SE.genes.table.DHEP3.csv")
+#DHEP
+
+DHEP.SE.table.promoters.RNA.seq <- RNA.seq.SE.table.promoters.filtered[RNA.seq.SE.table.promoters.filtered$log2FC<0,] 
+DHEP.SE.table.promoters.RNA.seq <- DHEP.SE.table.promoters.RNA.seq[!duplicated(DHEP.SE.table.promoters.RNA.seq),]
+
+#Exclude if gene is farther than 500 kb and FC > -0.9
+
+DHEP.SE.table.promoters.RNA.seq <- DHEP.SE.table.promoters.RNA.seq %>%  
+  filter(!(log2FoldChange> -0.9 & distance.kb>500))
+
+#Genes with FC < -0.5
+
+DHEP.SE.table.promoters.RNA.seq <- DHEP.SE.table.promoters.RNA.seq %>%  
+  filter(log2FoldChange< -0.5)
+
+Final.DHEP.SE.table.promoters.RNA.seq <- select(DHEP.SE.table.promoters.RNA.seq, V9, V6, V7, V8, TSS, V4, CHROM, START, STOP, CENTER, distance.kb, my_ranks,
+                                                log2FC, log2FoldChange, baseMean,padj)
+
+colnames(Final.DHEP.SE.table.promoters.RNA.seq) <- c("GENE.SYMBOL","PROMOTER.CHROM","PROMOTER.START","PROMOTER.END","PROMOTER.TSS","SE.PEAK","SE.CHROM",
+                                                     "SE.START", "SE.END", "SE.CENTER","DISTANCE.PROM.ENH.KB","RANKED.DISTANCE","SE.LOG2FC",
+                                                     "GENE.LOG2FC","GENE.BASEMEAN","GENE.LOG2FC.PADJ")
+
+write.csv(Final.DHEP.SE.table.promoters.RNA.seq, file = "SE.genes.table.DHEP3.csv")
 
 
-final.table.promoters.RNA.seq.DHEP.top <- SE.table.promoters.RNA.seq.DHEP  %>%
-  group_by(V4) %>%
-  arrange(log2FoldChange) %>% 
-  slice(1:5)
+#final.table.promoters.RNA.seq.DHEP.top <- SE.table.promoters.RNA.seq.DHEP  %>%
+  #group_by(V4) %>%
+  #arrange(log2FoldChange) %>% 
+  #slice(1:5)
 
 
 
@@ -104,21 +136,81 @@ TE.only.with.promoters <- TE.only.with.promoters[!duplicated(TE.only.with.promot
 Trimmed.TE.only.with.promoters <- TE.only.with.promoters[,c(-2,-3,-4,-5)]
 Trimmed.TE.only.with.promoters <- Trimmed.TE.only.with.promoters[Trimmed.TE.only.with.promoters$V7>0,]
 Trimmed.TE.only.with.promoters$TSS <- as.integer((Trimmed.TE.only.with.promoters$V7+Trimmed.TE.only.with.promoters$V8)/2)
-Trimmed.TE.only.with.promoters$distance <- abs(Trimmed.TE.only.with.promoters$CENTER - Trimmed.TE.only.with.promoters$TSS)
+Trimmed.TE.only.with.promoters$distance.kb <- (abs(Trimmed.TE.only.with.promoters$CENTER - Trimmed.TE.only.with.promoters$TSS))/1000
 
 #adding ranks by distance
 Trimmed.TE.only.with.promoters <-   Trimmed.TE.only.with.promoters %>%
                                     group_by(V4) %>%
-                                    mutate(my_ranks = order(order(distance, decreasing=F)))
+                                    mutate(my_ranks = order(order(distance.kb, decreasing=F)))
 
 
 #merging with RNAseq table and filtering lower expressed genes
 RNA.seq.TE.table.promoters<- merge(Trimmed.TE.only.with.promoters , read.rnaseq.results, by.x="V9", by.y="rn")
-RNA.seq.TE.table.promoters.filtered<- RNA.seq.TE.table.promoters[RNA.seq.TE.table.promoters$baseMean>250,]
-TE.table.promoters.RNA.seq.THEP <- RNA.seq.TE.table.promoters.filtered[RNA.seq.TE.table.promoters.filtered$log2FC>1,] 
-TE.table.promoters.RNA.seq.THEP <- TE.table.promoters.RNA.seq.THEP[!duplicated(TE.table.promoters.RNA.seq.THEP),]
-TE.table.promoters.RNA.seq.DHEP <-RNA.seq.TE.table.promoters.filtered[RNA.seq.TE.table.promoters.filtered$log2FC< -1,] 
-TE.table.promoters.RNA.seq.DHEP <- TE.table.promoters.RNA.seq.DHEP[!duplicated(TE.table.promoters.RNA.seq.DHEP),]
+RNA.seq.TE.table.promoters.filtered<- RNA.seq.TE.table.promoters[RNA.seq.TE.table.promoters$baseMean>100,]
+
+#THEP
+THEP.TE.table.promoters.RNA.seq<- RNA.seq.TE.table.promoters.filtered[RNA.seq.TE.table.promoters.filtered$log2FC>1,] 
+THEP.TE.table.promoters.RNA.seq <- THEP.TE.table.promoters.RNA.seq[!duplicated(THEP.TE.table.promoters.RNA.seq),]
+
+#Exclude if gene is farther than 500 kb 
+
+THEP.TE.table.promoters.RNA.seq <- THEP.TE.table.promoters.RNA.seq %>%  
+  filter(!(distance.kb>500))
+
+#Genes with FC < -0.5
+
+THEP.TE.table.promoters.RNA.seq <- THEP.TE.table.promoters.RNA.seq %>%  
+  filter(log2FoldChange> 0.5)
+
+THEP.TE.table.promoters.RNA.seq <- THEP.TE.table.promoters.RNA.seq[THEP.TE.table.promoters.RNA.seq$my_ranks<3,]
+
+Final.THEP.TE.table.promoters.RNA.seq <- select(THEP.TE.table.promoters.RNA.seq, V9, V6, V7, V8, TSS, V4, CHROM, START, STOP, CENTER, distance.kb, my_ranks,
+                                                log2FC, log2FoldChange, baseMean,padj)
+
+colnames(Final.THEP.TE.table.promoters.RNA.seq) <- c("GENE.SYMBOL","PROMOTER.CHROM","PROMOTER.START","PROMOTER.END","PROMOTER.TSS","SE.PEAK","SE.CHROM",
+                                                     "SE.START", "SE.END", "SE.CENTER","DISTANCE.PROM.ENH.KB","RANKED.DISTANCE","SE.LOG2FC",
+                                                     "GENE.LOG2FC","GENE.BASEMEAN","GENE.LOG2FC.PADJ")
+
+write.csv(Final.THEP.TE.table.promoters.RNA.seq, file = "TE.genes.table.THEP3.csv")
+
+
+#DHEP TE
+DHEP.TE.table.promoters.RNA.seq<- RNA.seq.TE.table.promoters.filtered[RNA.seq.TE.table.promoters.filtered$log2FC<0,] 
+DHEP.TE.table.promoters.RNA.seq <- DHEP.TE.table.promoters.RNA.seq[!duplicated(DHEP.TE.table.promoters.RNA.seq),]
+
+#Exclude if gene is farther than 500 kb 
+
+DHEP.TE.table.promoters.RNA.seq <- DHEP.TE.table.promoters.RNA.seq %>%  
+  filter(!(distance.kb>500))
+
+#Genes with FC < -0.5
+
+DHEP.TE.table.promoters.RNA.seq <- DHEP.TE.table.promoters.RNA.seq %>%  
+  filter(log2FoldChange< -0.5)
+
+DHEP.TE.table.promoters.RNA.seq <- DHEP.TE.table.promoters.RNA.seq[DHEP.TE.table.promoters.RNA.seq$my_ranks<3,]
+
+Final.DHEP.TE.table.promoters.RNA.seq <- select(DHEP.TE.table.promoters.RNA.seq, V9, V6, V7, V8, TSS, V4, CHROM, START, STOP, CENTER, distance.kb, my_ranks,
+                                                log2FC, log2FoldChange, baseMean,padj)
+
+colnames(Final.DHEP.TE.table.promoters.RNA.seq) <- c("GENE.SYMBOL","PROMOTER.CHROM","PROMOTER.START","PROMOTER.END","PROMOTER.TSS","SE.PEAK","SE.CHROM",
+                                                     "SE.START", "SE.END", "SE.CENTER","DISTANCE.PROM.ENH.KB","RANKED.DISTANCE","SE.LOG2FC",
+                                                     "GENE.LOG2FC","GENE.BASEMEAN","GENE.LOG2FC.PADJ")
+
+write.csv(Final.DHEP.TE.table.promoters.RNA.seq, file = "TE.genes.table.DHEP3.csv")
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 barplot(TE.table.promoters.RNA.seq.DHEP$log2FoldChange, TE.table.promoters.RNA.seq.DHEP$my_ranks<2)
 
